@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Floor Plan Manager - Konva.js</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <h1>📊 Floor Plan Manager</h1>
+      
+      <div class="tool-group">
+        <label>Mode</label>
+        <button class="btn active" id="drawMode">✏️ Draw</button>
+        <button class="btn" id="panMode">✋ Pan</button>
+      </div>
+      
+      <div class="tool-group">
+        <label>Next → Row</label>
+        <input type="number" id="nextRow" value="1" min="1" max="215">
+        <span class="hint">/ 215</span>
+      </div>
+      
+      <div class="tool-group">
+        <label>Size</label>
+        <input type="range" id="circleSize" min="14" max="50" value="24">
+        <span class="info-display" id="sizeDisplay">24px</span>
+      </div>
+      
+      <div class="tool-group">
+        <label>Zoom</label>
+        <button class="btn" id="zoomOut">−</button>
+        <span class="info-display" id="zoomDisplay">100%</span>
+        <button class="btn" id="zoomIn">+</button>
+        <button class="btn" id="fitView">Fit</button>
+      </div>
+      
+      <div class="tool-group">
+        <button class="btn btn-warning" id="loadImage">🖼️ Image</button>
+        <button class="btn" id="clearAll">🗑️ Clear</button>
+        <button class="btn" id="importData">📂 Load</button>
+        <button class="btn btn-special" id="exportData">💾 Save</button>
+      </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+      <!-- Canvas Container -->
+      <div id="canvas-container"></div>
+      
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <h2>📍 Circles: <span id="pointCount">0</span> / 215</h2>
+          <span class="saved-badge" id="savedBadge">✓ Saved</span>
+        </div>
+        <div class="sidebar-content">
+          <div class="point-list" id="pointList">
+            <div class="empty-message">
+              Click on map to add circles<br>
+              Hover over circle to see data
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="imageInput" accept="image/*" hidden>
+    <input type="file" id="jsonInput" accept=".json" hidden>
+
+    <!-- Instructions -->
+    <div class="instructions">
+      <h3>Controls</h3>
+      <p><kbd>D</kbd> Draw mode</p>
+      <p><kbd>P</kbd> Pan mode</p>
+      <p><kbd>Click</kbd> Place circle</p>
+      <p><kbd>Right-click</kbd> Delete</p>
+      <p><kbd>Scroll</kbd> Zoom</p>
+      <p><kbd>Del</kbd> Remove selected</p>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

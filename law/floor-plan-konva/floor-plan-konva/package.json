@@ -1,0 +1,18 @@
+{
+  "name": "floor-plan-manager",
+  "version": "1.0.0",
+  "description": "Floor Plan Manager with TypeScript and Konva.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "konva": "^9.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  }
+}
