@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Floor Plan - Full Data Export</title>
+
+  <style>
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+      background: #1a1a2e;
+
+      min-height: 100vh;
+
+      display: flex;
+
+      flex-direction: column;
+
+    }
+
+    
+
+    .toolbar {
+
+      background: #16213e;
+
+      padding: 10px 15px;
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 15px;
+
+      flex-wrap: wrap;
+
+      border-bottom: 2px solid #0f3460;
+
+    }
+
+    .toolbar h1 { color: #e94560; font-size: 16px; margin-right: 15px; }
+
+    .tool-group {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+      padding: 0 12px;
+
+      border-left: 1px solid #0f3460;
+
+    }
+
+    .tool-group:first-of-type { border-left: none; }
+
+    .tool-group label { color: #a0a0a0; font-size: 11px; text-transform: uppercase; }
+
+    .btn {
+
+      background: #0f3460;
+
+      color: white;
+
+      border: none;
+
+      padding: 6px 12px;
+
+      border-radius: 4px;
+
+      cursor: pointer;
+
+      font-size: 12px;
+
+      transition: all 0.2s;
+
+    }
+
+    .btn:hover { background: #e94560; }
+
+    .btn.active { background: #e94560; }
+
+    input[type="range"] { width: 100px; accent-color: #e94560; }
+
+    input[type="number"] {
+
+      width: 60px;
+
+      background: #0f3460;
+
+      border: 1px solid #0f3460;
+
+      color: white;
+
+      padding: 5px;
+
+      border-radius: 4px;
+
+      text-align: center;
+
+    }
+
+    .info-display {
+
+      background: #0f3460;
+
+      color: #e94560;
+
+      padding: 5px 10px;
+
+      border-radius: 4px;
+
+      font-weight: bold;
+
+      min-width: 55px;
+
+      text-align: center;
+
+      font-size: 12px;
+
+    }
+
+    
+
+    .container { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+    
+
+    #viewport {
+
+      flex: 1;
+
+      overflow: hidden;
+
+      position: relative;
+
+      background: #0d0d1a;
+
+      cursor: grab;
+
+    }
+
+    #viewport.grabbing { cursor: grabbing; }
+
+    #viewport.drawing { cursor: crosshair; }
+
+    
+
+    #map-container { position: absolute; transform-origin: 0 0; }
+
+    #map-container img { display: block; user-select: none; -webkit-user-drag: none; }
+
+    
+
+    .point {
+
+      position: absolute;
+
+      background: rgba(233, 69, 96, 0.7);
+
+      border: 2px solid #e94560;
+
+      border-radius: 50%;
+
+      transform: translate(-50%, -50%);
+
+      cursor: pointer;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      color: white;
+
+      font-size: 10px;
+
+      font-weight: bold;
+
+      transition: all 0.15s;
+
+      z-index: 10;
+
+    }
+
+    .point:hover {
+
+      background: rgba(233, 69, 96, 1);
+
+      z-index: 100;
+
+      transform: translate(-50%, -50%) scale(1.3);
+
+    }
+
+    .point.selected {
+
+      border-color: #00ff88;
+
+      box-shadow: 0 0 15px #00ff88;
+
+    }
+
+    
+
+    /* Tooltip */
+
+    .tooltip {
+
+      position: fixed;
+
+      background: #16213e;
+
+      border: 2px solid #e94560;
+
+      border-radius: 10px;
+
+      padding: 15px;
+
+      min-width: 280px;
+
+      max-width: 320px;
+
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+
+      z-index: 1000;
+
+      pointer-events: none;
+
+      opacity: 0;
+
+      transition: opacity 0.2s;
+
+    }
+
+    .tooltip.visible { opacity: 1; }
+
+    .tooltip h3 {
+
+      color: #e94560;
+
+      font-size: 16px;
+
+      margin-bottom: 10px;
+
+      padding-bottom: 8px;
+
+      border-bottom: 1px solid #0f3460;
+
+    }
+
+    .tooltip h3 .badge {
+
+      background: #e94560;
+
+      color: white;
+
+      padding: 2px 8px;
+
+      border-radius: 10px;
+
+      font-size: 12px;
+
+      margin-right: 8px;
+
+    }
+
+    .tooltip h3 .plate { color: #00ff88; }
+
+    .tooltip-grid {
+
+      display: grid;
+
+      grid-template-columns: repeat(3, 1fr);
+
+      gap: 6px;
+
+    }
+
+    .tooltip-item {
+
+      background: #0f3460;
+
+      padding: 6px 8px;
+
+      border-radius: 4px;
+
+      text-align: center;
+
+    }
+
+    .tooltip-item .label {
+
+      color: #a0a0a0;
+
+      font-size: 9px;
+
+      text-transform: uppercase;
+
+    }
+
+    .tooltip-item .value {
+
+      font-size: 13px;
+
+      font-weight: bold;
+
+      margin-top: 2px;
+
+    }
+
+    .tooltip-item .value.strong { color: #00ff88; }
+
+    .tooltip-item .value.medium { color: #ffa500; }
+
+    .tooltip-item .value.weak { color: #e94560; }
+
+    .tooltip-item.main {
+
+      grid-column: span 3;
+
+      background: linear-gradient(135deg, #0f3460, #1a1a2e);
+
+    }
+
+    .tooltip-item.main .value { font-size: 18px; }
+
+    
+
+    /* Sidebar */
+
+    .sidebar {
+
+      width: 300px;
+
+      background: #16213e;
+
+      border-left: 2px solid #0f3460;
+
+      display: flex;
+
+      flex-direction: column;
+
+      overflow: hidden;
+
+    }
+
+    .sidebar-header {
+
+      padding: 12px;
+
+      border-bottom: 1px solid #0f3460;
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+    }
+
+    .sidebar-header h2 { color: #e94560; font-size: 14px; }
+
+    .saved-badge { font-size: 10px; color: #00ff88; display: none; }
+
+    .saved-badge.visible { display: inline; }
+
+    
+
+    .sidebar-content { flex: 1; overflow-y: auto; padding: 10px; }
+
+    
+
+    .point-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .point-item {
+
+      background: #0f3460;
+
+      padding: 8px 10px;
+
+      border-radius: 6px;
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      color: white;
+
+      font-size: 11px;
+
+      cursor: pointer;
+
+      transition: background 0.2s;
+
+    }
+
+    .point-item:hover { background: #1a4a7a; }
+
+    .point-item.selected { border-left: 3px solid #00ff88; }
+
+    .point-item .delete-btn {
+
+      background: transparent;
+
+      border: none;
+
+      color: #e94560;
+
+      cursor: pointer;
+
+      font-size: 14px;
+
+    }
+
+    
+
+    .instructions {
+
+      position: fixed;
+
+      bottom: 15px;
+
+      left: 15px;
+
+      background: rgba(22, 33, 62, 0.95);
+
+      padding: 12px;
+
+      border-radius: 8px;
+
+      color: #a0a0a0;
+
+      font-size: 11px;
+
+      max-width: 220px;
+
+      border: 1px solid #0f3460;
+
+      z-index: 500;
+
+    }
+
+    .instructions h3 { color: #e94560; margin-bottom: 6px; font-size: 12px; }
+
+    .instructions p { margin: 3px 0; }
+
+    .instructions kbd { background: #0f3460; padding: 1px 5px; border-radius: 3px; color: white; }
+
+    
+
+    .toast {
+
+      position: fixed;
+
+      top: 80px;
+
+      left: 50%;
+
+      transform: translateX(-50%);
+
+      background: #00ff88;
+
+      color: #1a1a2e;
+
+      padding: 10px 20px;
+
+      border-radius: 6px;
+
+      font-weight: bold;
+
+      z-index: 1000;
+
+      opacity: 0;
+
+      transition: opacity 0.3s;
+
+    }
+
+    .toast.show { opacity: 1; }
+
+  </style>
+
+</head>
+
+<body>
+
+
+
+<div class="toolbar">
+
+  <h1>📊 Floor Plan + Full Data</h1>
+
+  
+
+  <div class="tool-group">
+
+    <label>Mode</label>
+
+    <button class="btn active" id="drawMode">✏️ Draw</button>
+
+    <button class="btn" id="panMode">✋ Pan</button>
+
+  </div>
+
+  
+
+  <div class="tool-group">
+
+    <label>Next → Row</label>
+
+    <input type="number" id="nextRow" value="1" min="1" max="215">
+
+    <span style="color:#a0a0a0;font-size:11px;">/ 215</span>
+
+  </div>
+
+  
+
+  <div class="tool-group">
+
+    <label>Size</label>
+
+    <input type="range" id="circleSize" min="14" max="50" value="24">
+
+    <span class="info-display" id="sizeDisplay">24px</span>
+
+  </div>
+
+  
+
+  <div class="tool-group">
+
+    <label>Zoom</label>
+
+    <button class="btn" id="zoomOut">−</button>
+
+    <span class="info-display" id="zoomDisplay">100%</span>
+
+    <button class="btn" id="zoomIn">+</button>
+
+    <button class="btn" id="fitView">Fit</button>
+
+  </div>
+
+  
+
+  <div class="tool-group">
+
+    <button class="btn" id="clearAll">🗑️ Clear</button>
+
+    <button class="btn" id="exportData">💾 Save Full Data</button>
+
+    <button class="btn" id="importData">📂 Load</button>
+
+  </div>
+
+</div>
+
+
+
+<div class="container">
+
+  <div id="viewport">
+
+    <div id="map-container">
+
+      <img id="floorImage" src="floor1.jpg" alt="Floor Plan">
+
+    </div>
+
+  </div>
+
+  
+
+  <div class="sidebar">
+
+    <div class="sidebar-header">
+
+      <h2>📍 Circles: <span id="pointCount">0</span> / 215</h2>
+
+      <span class="saved-badge" id="savedBadge">✓ Saved</span>
+
+    </div>
+
+    <div class="sidebar-content">
+
+      <div class="point-list" id="pointList">
+
+        <div style="color:#a0a0a0;text-align:center;padding:20px;font-size:12px;">
+
+          Click on map to add circles<br>
+
+          Hover over circle to see data
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<div class="tooltip" id="tooltip"></div>
+
+
+
+<div class="toast" id="toast"></div>
+
+
+
+<div class="instructions">
+
+  <h3>How it works</h3>
+
+  <p><strong>Auto-Save is ON</strong></p>
+
+  <hr style="border-color:#0f3460;margin:8px 0;">
+
+  <p><strong>Save Button</strong> = Downloads full excel data with coords</p>
+
+  <hr style="border-color:#0f3460;margin:8px 0;">
+
+  <p><kbd>Click</kbd> Place circle</p>
+
+  <p><kbd>Right-click</kbd> Delete</p>
+
+</div>
+
+
+
+<script>
+
+// Excel data
+
+let excelData = [];
+
+
+
+// State
+
+let scale = 1, offsetX = 0, offsetY = 0;
+
+let isDragging = false, dragStartX = 0, dragStartY = 0;
+
+let mode = 'draw';
+
+let circleSize = 24;
+
+let points = [];
+
+let selectedPoint = null;
+
+
+
+// Local Storage Key
+
+const STORAGE_KEY = 'floorPlan_points_v1';
+
+
+
+// Elements
+
+const viewport = document.getElementById('viewport');
+
+const mapContainer = document.getElementById('map-container');
+
+const floorImage = document.getElementById('floorImage');
+
+const zoomDisplay = document.getElementById('zoomDisplay');
+
+const sizeDisplay = document.getElementById('sizeDisplay');
+
+const pointList = document.getElementById('pointList');
+
+const pointCount = document.getElementById('pointCount');
+
+const circleSizeInput = document.getElementById('circleSize');
+
+const nextRowInput = document.getElementById('nextRow');
+
+const tooltip = document.getElementById('tooltip');
+
+const savedBadge = document.getElementById('savedBadge');
+
+
+
+// Load Excel data
+
+fetch('plate_data.json')
+
+  .then(r => r.json())
+
+  .then(data => {
+
+    excelData = data;
+
+    console.log('Loaded', excelData.length, 'rows');
+
+    updatePointList(); 
+
+  })
+
+  .catch(err => {
+
+    console.error('Error:', err);
+
+    showToast('Error loading excel data!');
+
+  });
+
+
+
+// Image load
+
+floorImage.onload = () => setTimeout(initMap, 100);
+
+if (floorImage.complete) setTimeout(initMap, 100);
+
+
+
+function initMap() {
+
+  fitToContent();
+
+  loadFromLocal();
+
+}
+
+
+
+function fitToContent() {
+
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+
+  const iw = floorImage.naturalWidth, ih = floorImage.naturalHeight;
+
+  
+
+  if (!iw || !ih) return;
+
+
+
+  const contentLeft = iw * 0.15, contentTop = ih * 0.28;
+
+  const contentWidth = iw * 0.72, contentHeight = ih * 0.48;
+
+  
+
+  scale = Math.min(vw / contentWidth, vh / contentHeight) * 0.92;
+
+  scale = Math.max(0.5, Math.min(scale, 4));
+
+  
+
+  offsetX = vw / 2 - (contentLeft + contentWidth / 2) * scale;
+
+  offsetY = vh / 2 - (contentTop + contentHeight / 2) * scale;
+
+  
+
+  updateTransform();
+
+}
+
+
+
+function updateTransform() {
+
+  mapContainer.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+
+  zoomDisplay.textContent = Math.round(scale * 100) + '%';
+
+  updateAllPointSizes();
+
+}
+
+
+
+function updateAllPointSizes() {
+
+  document.querySelectorAll('.point').forEach(p => {
+
+    const size = p.dataset.size / scale;
+
+    p.style.width = size + 'px';
+
+    p.style.height = size + 'px';
+
+    p.style.fontSize = Math.max(8, 11 / scale) + 'px';
+
+    p.style.borderWidth = Math.max(1, 2 / scale) + 'px';
+
+  });
+
+}
+
+
+
+// --- LOCAL STORAGE FUNCTIONS ---
+
+
+
+function saveToLocal() {
+
+  try {
+
+    const dataToSave = JSON.stringify(points);
+
+    localStorage.setItem(STORAGE_KEY, dataToSave);
+
+    
+
+    savedBadge.classList.add('visible');
+
+    setTimeout(() => savedBadge.classList.remove('visible'), 2000);
+
+  } catch (e) {
+
+    console.error("Could not save to local storage", e);
+
+  }
+
+}
+
+
+
+function loadFromLocal() {
+
+  try {
+
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (saved) {
+
+      const parsedPoints = JSON.parse(saved);
+
+      if (Array.isArray(parsedPoints) && parsedPoints.length > 0) {
+
+        document.querySelectorAll('.point').forEach(p => p.remove());
+
+        points = [];
+
+        
+
+        parsedPoints.forEach(p => {
+
+          addPoint(p.x, p.y, p.size || 24, p.rowNum, true); // true = silent
+
+        });
+
+        
+
+        showToast('Restored ' + points.length + ' saved points');
+
+        updateNextRowInput();
+
+      }
+
+    }
+
+  } catch (e) {
+
+    console.error("Could not load from local storage", e);
+
+  }
+
+}
+
+
+
+function updateNextRowInput() {
+
+  let next = 1;
+
+  const existingRows = points.map(p => p.rowNum);
+
+  while (next <= 215 && existingRows.includes(next)) next++;
+
+  if (next <= 215) nextRowInput.value = next;
+
+}
+
+
+
+// --- INTERACTION ---
+
+
+
+// Mode switching
+
+document.getElementById('drawMode').onclick = function() {
+
+  mode = 'draw';
+
+  this.classList.add('active');
+
+  document.getElementById('panMode').classList.remove('active');
+
+  viewport.classList.remove('grabbing');
+
+  viewport.classList.add('drawing');
+
+};
+
+
+
+document.getElementById('panMode').onclick = function() {
+
+  mode = 'pan';
+
+  this.classList.add('active');
+
+  document.getElementById('drawMode').classList.remove('active');
+
+  viewport.classList.remove('drawing');
+
+};
+
+
+
+viewport.classList.add('drawing');
+
+
+
+circleSizeInput.oninput = function() {
+
+  circleSize = parseInt(this.value);
+
+  sizeDisplay.textContent = circleSize + 'px';
+
+};
+
+
+
+// Zoom
+
+document.getElementById('zoomIn').onclick = () => zoom(1.25);
+
+document.getElementById('zoomOut').onclick = () => zoom(0.8);
+
+document.getElementById('fitView').onclick = fitToContent;
+
+
+
+function zoom(factor, cx, cy) {
+
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+
+  cx = cx ?? vw / 2; cy = cy ?? vh / 2;
+
+  
+
+  const imgX = (cx - offsetX) / scale;
+
+  const imgY = (cy - offsetY) / scale;
+
+  
+
+  scale = Math.max(0.3, Math.min(6, scale * factor));
+
+  offsetX = cx - imgX * scale;
+
+  offsetY = cy - imgY * scale;
+
+  
+
+  updateTransform();
+
+}
+
+
+
+viewport.addEventListener('wheel', function(e) {
+
+  e.preventDefault();
+
+  const rect = viewport.getBoundingClientRect();
+
+  zoom(e.deltaY < 0 ? 1.12 : 0.89, e.clientX - rect.left, e.clientY - rect.top);
+
+}, { passive: false });
+
+
+
+// Pan
+
+viewport.addEventListener('mousedown', function(e) {
+
+  if (e.button === 0 && mode === 'pan') {
+
+    isDragging = true;
+
+    dragStartX = e.clientX - offsetX;
+
+    dragStartY = e.clientY - offsetY;
+
+    viewport.classList.add('grabbing');
+
+  }
+
+});
+
+
+
+viewport.addEventListener('mousemove', function(e) {
+
+  if (isDragging) {
+
+    offsetX = e.clientX - dragStartX;
+
+    offsetY = e.clientY - dragStartY;
+
+    updateTransform();
+
+  }
+
+});
+
+
+
+viewport.addEventListener('mouseup', () => { isDragging = false; viewport.classList.remove('grabbing'); });
+
+viewport.addEventListener('mouseleave', () => { isDragging = false; viewport.classList.remove('grabbing'); });
+
+
+
+// Add circle on click
+
+mapContainer.addEventListener('click', function(e) {
+
+  if (mode !== 'draw' || e.target.classList.contains('point')) return;
+
+  
+
+  const rect = mapContainer.getBoundingClientRect();
+
+  const x = (e.clientX - rect.left) / scale;
+
+  const y = (e.clientY - rect.top) / scale;
+
+  
+
+  const rowNum = parseInt(nextRowInput.value);
+
+  if (rowNum < 1 || rowNum > 215) {
+
+    showToast('Row must be 1-215');
+
+    return;
+
+  }
+
+  
+
+  if (points.find(p => p.rowNum === rowNum)) {
+
+    showToast('Circle ' + rowNum + ' already exists!');
+
+    return;
+
+  }
+
+  
+
+  addPoint(x, y, circleSize, rowNum);
+
+  updateNextRowInput(); 
+
+});
+
+
+
+function addPoint(x, y, size, rowNum, silent = false) {
+
+  const id = 'c_' + rowNum;
+
+  
+
+  const p = document.createElement('div');
+
+  p.className = 'point';
+
+  p.dataset.id = id;
+
+  p.dataset.size = size;
+
+  p.dataset.row = rowNum;
+
+  p.style.left = x + 'px';
+
+  p.style.top = y + 'px';
+
+  p.textContent = rowNum;
+
+  
+
+  // Right-click to delete
+
+  p.addEventListener('contextmenu', e => { e.preventDefault(); removePoint(id); });
+
+  
+
+  // Click to select
+
+  p.addEventListener('click', e => {
+
+    e.stopPropagation();
+
+    selectPoint(id);
+
+    showTooltipForPoint(rowNum, e.clientX, e.clientY);
+
+  });
+
+  
+
+  // Hover to show tooltip
+
+  p.addEventListener('mouseenter', e => {
+
+    showTooltipForPoint(rowNum, e.clientX, e.clientY);
+
+  });
+
+  
+
+  p.addEventListener('mousemove', e => {
+
+    positionTooltip(e.clientX, e.clientY);
+
+  });
+
+  
+
+  p.addEventListener('mouseleave', () => {
+
+    tooltip.classList.remove('visible');
+
+  });
+
+  
+
+  mapContainer.appendChild(p);
+
+  
+
+  points.push({ id, x: Math.round(x), y: Math.round(y), size, rowNum });
+
+  points.sort((a, b) => a.rowNum - b.rowNum);
+
+  
+
+  updatePointList();
+
+  updateAllPointSizes();
+
+  saveToLocal(); 
+
+  
+
+  if (!silent) showToast('Circle ' + rowNum + ' added');
+
+}
+
+
+
+function showTooltipForPoint(rowNum, mouseX, mouseY) {
+
+  const rowData = excelData[rowNum - 1];
+
+  
+
+  if (!rowData) {
+
+    tooltip.innerHTML = `<h3><span class="badge">${rowNum}</span> No Data</h3>`;
+
+    tooltip.classList.add('visible');
+
+    positionTooltip(mouseX, mouseY);
+
+    return;
+
+  }
+
+  
+
+  function getSignalClass(val) {
+
+    if (val >= -60) return 'strong';
+
+    if (val >= -80) return 'medium';
+
+    return 'weak';
+
+  }
+
+  
+
+  const signals = Object.entries(rowData.signals);
+
+  
+
+  const signalItems = signals.map(([key, val], i) => `
+
+    <div class="tooltip-item ${i === 0 ? 'main' : ''}">
+
+      <div class="label">${key}</div>
+
+      <div class="value ${getSignalClass(val)}">${val}</div>
+
+    </div>
+
+  `).join('');
+
+  
+
+  tooltip.innerHTML = `
+
+    <h3><span class="badge">${rowNum}</span> <span class="plate">${rowData.plate}</span></h3>
+
+    <div class="tooltip-grid">
+
+      ${signalItems}
+
+    </div>
+
+  `;
+
+  
+
+  tooltip.classList.add('visible');
+
+  positionTooltip(mouseX, mouseY);
+
+}
+
+
+
+function positionTooltip(mouseX, mouseY) {
+
+  const tooltipRect = tooltip.getBoundingClientRect();
+
+  const padding = 15;
+
+  
+
+  let left = mouseX + padding;
+
+  let top = mouseY + padding;
+
+  
+
+  // Keep tooltip on screen
+
+  if (left + tooltipRect.width > window.innerWidth - padding) {
+
+    left = mouseX - tooltipRect.width - padding;
+
+  }
+
+  if (top + tooltipRect.height > window.innerHeight - padding) {
+
+    top = mouseY - tooltipRect.height - padding;
+
+  }
+
+  
+
+  tooltip.style.left = left + 'px';
+
+  tooltip.style.top = top + 'px';
+
+}
+
+
+
+function selectPoint(id) {
+
+  document.querySelectorAll('.point.selected').forEach(p => p.classList.remove('selected'));
+
+  document.querySelectorAll('.point-item.selected').forEach(p => p.classList.remove('selected'));
+
+  
+
+  selectedPoint = id;
+
+  const pointEl = document.querySelector(`.point[data-id="${id}"]`);
+
+  if (pointEl) {
+
+    pointEl.classList.add('selected');
+
+    const listItem = document.querySelector(`.point-item[data-id="${id}"]`);
+
+    if (listItem) {
+
+        listItem.classList.add('selected');
+
+        listItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    }
+
+  }
+
+}
+
+
+
+function removePoint(id) {
+
+  const pointEl = document.querySelector(`.point[data-id="${id}"]`);
+
+  const pt = points.find(p => p.id === id);
+
+  
+
+  if (pointEl) pointEl.remove();
+
+  points = points.filter(p => p.id !== id);
+
+  
+
+  if (selectedPoint === id) selectedPoint = null;
+
+  
+
+  tooltip.classList.remove('visible');
+
+  updatePointList();
+
+  saveToLocal(); 
+
+  if (pt) showToast('Circle ' + pt.rowNum + ' removed');
+
+}
+
+
+
+function updatePointList() {
+
+  pointCount.textContent = points.length;
+
+  
+
+  if (points.length === 0) {
+
+    pointList.innerHTML = `<div style="color:#a0a0a0;text-align:center;padding:20px;font-size:12px;">
+
+      Click on map to add circles<br>Hover over circle to see data
+
+    </div>`;
+
+    return;
+
+  }
+
+  
+
+  pointList.innerHTML = points.map(p => {
+
+    const rowData = excelData[p.rowNum - 1];
+
+    const plateName = rowData ? rowData.plate : '?';
+
+    return `
+
+      <div class="point-item ${selectedPoint === p.id ? 'selected' : ''}" data-id="${p.id}" 
+
+           onmouseenter="highlightPoint('${p.id}')"
+
+           onmouseleave="unhighlightPoint('${p.id}')"
+
+           onclick="selectPoint('${p.id}')">
+
+        <div>
+
+          <strong>${p.rowNum}</strong> → ${plateName}
+
+        </div>
+
+        <button class="delete-btn" onclick="event.stopPropagation(); removePoint('${p.id}')">✕</button>
+
+      </div>
+
+    `;
+
+  }).join('');
+
+}
+
+
+
+function highlightPoint(id) {
+
+  const pointEl = document.querySelector(`.point[data-id="${id}"]`);
+
+  if (pointEl) pointEl.style.transform = 'translate(-50%, -50%) scale(1.4)';
+
+}
+
+
+
+function unhighlightPoint(id) {
+
+  const pointEl = document.querySelector(`.point[data-id="${id}"]`);
+
+  if (pointEl) pointEl.style.transform = 'translate(-50%, -50%)';
+
+}
+
+
+
+window.selectPoint = selectPoint;
+
+window.removePoint = removePoint;
+
+window.highlightPoint = highlightPoint;
+
+window.unhighlightPoint = unhighlightPoint;
+
+
+
+// Clear all
+
+document.getElementById('clearAll').onclick = function() {
+
+  if (points.length === 0 || confirm('Clear all ' + points.length + ' circles?')) {
+
+    document.querySelectorAll('.point').forEach(p => p.remove());
+
+    points = [];
+
+    selectedPoint = null;
+
+    nextRowInput.value = 1;
+
+    updatePointList();
+
+    tooltip.classList.remove('visible');
+
+    saveToLocal(); 
+
+    showToast('All cleared');
+
+  }
+
+};
+
+
+
+// --- THIS IS THE MODIFIED SAVE FUNCTION ---
+
+document.getElementById('exportData').onclick = function() {
+
+  if (points.length === 0) {
+
+    showToast('No points to save');
+
+    return;
+
+  }
+
+  
+
+  // Combine coordinate data with FULL excel data
+
+  const data = points.map(p => {
+
+    // Get the excel row data (or empty object if missing)
+
+    const rowData = excelData[p.rowNum - 1] || {};
+
+    
+
+    return {
+
+      row: p.rowNum,
+
+      x: p.x,
+
+      y: p.y,
+
+      size: p.size,
+
+      ...rowData // This spreads Plate, Signals, etc. into the saved object
+
+    };
+
+  });
+
+
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+
+  const a = document.createElement('a');
+
+  a.href = URL.createObjectURL(blob);
+
+  a.download = 'floor_full_data.json';
+
+  a.click();
+
+  showToast('Full Data Saved!');
+
+};
+
+
+
+// Import
+
+document.getElementById('importData').onclick = function() {
+
+  const input = document.createElement('input');
+
+  input.type = 'file';
+
+  input.accept = '.json';
+
+  input.onchange = function(e) {
+
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+
+      try {
+
+        const data = JSON.parse(e.target.result);
+
+        
+
+        if (confirm('Replace current points with this file?')) {
+
+            document.querySelectorAll('.point').forEach(p => p.remove());
+
+            points = [];
+
+            
+
+            data.forEach(item => {
+
+              if (item.row >= 1 && item.row <= 215) {
+
+                addPoint(item.x, item.y, item.size || 24, item.row, true);
+
+              }
+
+            });
+
+            
+
+            saveToLocal(); 
+
+            updateNextRowInput();
+
+            showToast('Loaded ' + points.length + ' circles!');
+
+        }
+
+      } catch (err) {
+
+        showToast('Error loading file!');
+
+      }
+
+    };
+
+    reader.readAsText(file);
+
+  };
+
+  input.click();
+
+};
+
+
+
+function showToast(msg) {
+
+  const toast = document.getElementById('toast');
+
+  toast.textContent = msg;
+
+  toast.classList.add('show');
+
+  setTimeout(() => toast.classList.remove('show'), 2000);
+
+}
+
+
+
+// Keyboard
+
+document.addEventListener('keydown', function(e) {
+
+  if (e.target.tagName === 'INPUT') return;
+
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selectedPoint) removePoint(selectedPoint);
+
+  if (e.key === 'd' || e.key === 'D') document.getElementById('drawMode').click();
+
+  if (e.key === 'p' || e.key === 'P') document.getElementById('panMode').click();
+
+  if (e.key === '+' || e.key === '=') zoom(1.25);
+
+  if (e.key === '-') zoom(0.8);
+
+});
+
+</script>
+
+
+
+</body>
+
+</html>
