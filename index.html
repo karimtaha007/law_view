@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Floor Plan Signal Analysis</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      -webkit-tap-highlight-color: transparent; 
+      touch-action: none; /* Prevents browser scroll/zoom gestures globally */
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden; /* Locks the page so it doesn't bounce */
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #1a1a2e; /* Match theme color (Fixes white flash) */
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+      border-bottom: 3px solid #e94560;
+      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    
+    .header h1 {
+      color: #00ff88;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .count-badge {
+      background: #e94560;
+      color: white;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    /* ===== CONTROLS ===== */
+    .controls {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .btn {
+      background: #0f3460;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.1);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    
+    .btn:active { background: #e94560; }
+    .btn-text { font-size: 12px; width: auto; padding: 0 10px; font-weight: 600; }
+
+    /* ===== VIEWPORT (THE MAP AREA) ===== */
+    #viewport {
+      position: absolute;
+      top: 60px; /* Below header */
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1a1a2e; /* Dark background (Critical Fix for White Page) */
+      overflow: hidden;
+      cursor: grab;
+    }
+    
+    #viewport.grabbing { cursor: grabbing; }
+
+    /* ===== MAP CONTAINER ===== */
+    #map-container {
+      position: absolute;
+      transform-origin: 0 0;
+      will-change: transform;
+      /* Ensure clicks pass through empty space if needed */
+      pointer-events: auto; 
+    }
+    
+    #floorImage {
+      display: block;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* ===== POINTS ===== */
+    .point {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      background: #ffffff;
+      border: 3px solid #e94560;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 12px;
+      color: #000;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+
+    .point.active {
+      background: #00ff88;
+      border-color: #ffffff;
+      transform: translate(-50%, -50%) scale(1.3);
+      z-index: 20;
+      box-shadow: 0 0 15px #00ff88;
+    }
+
+    /* ===== INFO SHEET (MOBILE OPTIMIZED) ===== */
+    .info-sheet {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #16213e;
+      border-top: 4px solid #e94560;
+      border-radius: 20px 20px 0 0;
+      padding: 15px 15px 30px 15px; /* Extra bottom padding for safe area */
+      box-shadow: 0 -5px 30px rgba(0,0,0,0.8);
+      z-index: 2000;
+      
+      transform: translateY(110%);
+      transition: transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
+      
+      display: flex;
+      flex-direction: column;
+      max-height: 50vh; /* Takes max half screen on mobile */
+    }
+
+    .info-sheet.open {
+      transform: translateY(0);
+    }
+
+    /* Desktop overrides for info sheet */
+    @media (min-width: 768px) {
+      .info-sheet {
+        bottom: 20px;
+        right: 20px;
+        left: auto;
+        width: 320px;
+        border-radius: 12px;
+        border: 2px solid #e94560;
+        max-height: 80vh;
+      }
+    }
+
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .plate-info { color: white; font-weight: bold; }
+    .plate-id { background: #e94560; padding: 2px 6px; border-radius: 4px; margin-right: 8px; font-size: 12px; }
+
+    .close-btn {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: white;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      font-size: 20px;
+    }
+
+    .sheet-scroll {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); /* Auto-fit grid */
+      gap: 8px;
+    }
+
+    .signal-box {
+      background: rgba(0,0,0,0.3);
+      padding: 10px;
+      border-radius: 6px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .signal-label { font-size: 10px; color: #8fa0bc; text-transform: uppercase; }
+    .signal-val { font-size: 16px; font-weight: bold; font-family: monospace; margin-top: 4px; }
+    
+    .val-g { color: #00ff88; }
+    .val-y { color: #ffcc00; }
+    .val-r { color: #ff4d4d; }
+
+    /* ===== ERROR / STATUS ===== */
+    #status-msg {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      background: rgba(0,0,0,0.8);
+      padding: 20px;
+      border-radius: 10px;
+      pointer-events: none;
+      z-index: 3000;
+    }
+    .hidden { display: none; }
+
+    /* Mobile specific adjustments */
+    @media (max-width: 600px) {
+      .btn-text { display: none; } /* Hide "Reset View" text on small phones */
+      .header h1 { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>
+      <span>Signal Map</span>
+      <span class="count-badge" id="plateCount">0</span>
+    </h1>
+    <div class="controls">
+      <button class="btn btn-text" id="btnReset">Reset</button>
+      <button class="btn" id="btnFit">⛶</button>
+      <button class="btn" id="btnPlus">＋</button>
+      <button class="btn" id="btnMinus">－</button>
+    </div>
+  </div>
+
+  <div id="viewport">
+    <div id="map-container">
+      <img id="floorImage" src="floor1.jpg" alt="Floor Plan">
+    </div>
+    <div id="status-msg">Loading Map...</div>
+  </div>
+
+  <div class="info-sheet" id="infoSheet">
+    <div class="sheet-header">
+      <div class="plate-info">
+        <span class="plate-id" id="sheetId">#0</span>
+        <span id="sheetName">Point</span>
+      </div>
+      <button class="close-btn" id="closeSheet">×</button>
+    </div>
+    <div class="sheet-scroll">
+      <div class="data-grid" id="sheetContent">
+        </div>
+    </div>
+  </div>
+
+<script>
+  // ===== CONFIGURATION =====
+  const CONFIG = {
+    minScale: 0.1,
+    maxScale: 8,
+    zoomStep: 1.3,
+    imageSrc: 'floor1.jpg',
+    dataSrc: 'floor_full_data.json'
+  };
+
+  // ===== STATE =====
+  let state = {
+    scale: 1,
+    x: 0,
+    y: 0,
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    points: [],
+    imgWidth: 0,
+    imgHeight: 0
+  };
+
+  const els = {
+    viewport: document.getElementById('viewport'),
+    container: document.getElementById('map-container'),
+    img: document.getElementById('floorImage'),
+    sheet: document.getElementById('infoSheet'),
+    status: document.getElementById('status-msg')
+  };
+
+  // ===== INIT =====
+  function init() {
+    els.img.onload = () => {
+      state.imgWidth = els.img.naturalWidth;
+      state.imgHeight = els.img.naturalHeight;
+      loadPointsData();
+    };
+    
+    // Failsafe if image is already cached
+    if (els.img.complete && els.img.naturalWidth > 0) {
+      state.imgWidth = els.img.naturalWidth;
+      state.imgHeight = els.img.naturalHeight;
+      loadPointsData();
+    }
+
+    setupEventListeners();
+    
+    // Handle window resize (orientation change)
+    window.addEventListener('resize', () => {
+        setTimeout(fitMapToScreen, 100);
+    });
+  }
+
+  async function loadPointsData() {
+    try {
+      const res = await fetch(CONFIG.dataSrc);
+      if(!res.ok) throw new Error("No Data");
+      const data = await res.json();
+      
+      state.points = Array.isArray(data) ? data : (data.points || []);
+      
+      document.getElementById('plateCount').textContent = state.points.length;
+      els.status.classList.add('hidden');
+      
+      renderPoints();
+      fitMapToScreen();
+      
+    } catch (e) {
+      console.error(e);
+      els.status.textContent = "Data not found. Place floor_full_data.json in folder.";
+      fitMapToScreen();
+    }
+  }
+
+  // ===== RENDER =====
+  function renderPoints() {
+    document.querySelectorAll('.point').forEach(p => p.remove());
+    
+    state.points.forEach(p => {
+      const el = document.createElement('div');
+      el.className = 'point';
+      el.textContent = p.row;
+      el.style.left = p.x + 'px';
+      el.style.top = p.y + 'px';
+      
+      // Store original size for scaling
+      el.dataset.baseSize = p.size || 28;
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation(); // Stop map from receiving click
+        openSheet(p, el);
+      });
+      
+      els.container.appendChild(el);
+    });
+    updateTransform();
+  }
+
+  // ===== CORE TRANSFORM LOGIC (FIXED) =====
+  function updateTransform() {
+    // Apply constraints before rendering (Prevent White Page)
+    constrainBounds();
+
+    els.container.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+    
+    // Inverse scale points so they stay readable
+    const invScale = 1 / state.scale;
+    document.querySelectorAll('.point').forEach(el => {
+      const base = parseInt(el.dataset.baseSize);
+      let size = base * invScale;
+      // Clamp size so they don't get too tiny or huge
+      if(size < 15) size = 15;
+      if(size > 60) size = 60;
+      
+      el.style.width = size + 'px';
+      el.style.height = size + 'px';
+      el.style.fontSize = (size * 0.45) + 'px';
+    });
+  }
+
+  // !!! CRITICAL FIX: Prevent map from disappearing !!!
+  function constrainBounds() {
+    const vpW = els.viewport.clientWidth;
+    const vpH = els.viewport.clientHeight;
+    
+    const mapW = state.imgWidth * state.scale;
+    const mapH = state.imgHeight * state.scale;
+
+    // Logic: Keep the map covering the screen OR centered if smaller than screen
+    // But for a simple "don't lose it" logic:
+    // Ensure the center of the map is somewhat within the viewport
+    
+    const minOverlap = 50; // Keep at least 50px visible
+    
+    const max_x = vpW - minOverlap;
+    const min_x = -mapW + minOverlap;
+    
+    const max_y = vpH - minOverlap;
+    const min_y = -mapH + minOverlap;
+
+    // Apply strict clamping
+    if (state.x > max_x) state.x = max_x;
+    if (state.x < min_x) state.x = min_x;
+    if (state.y > max_y) state.y = max_y;
+    if (state.y < min_y) state.y = min_y;
+  }
+
+  function fitMapToScreen() {
+    if (state.imgWidth === 0) return;
+    
+    const vpW = els.viewport.clientWidth;
+    const vpH = els.viewport.clientHeight;
+    
+    const scaleW = vpW / state.imgWidth;
+    const scaleH = vpH / state.imgHeight;
+    
+    // Fit entire image
+    state.scale = Math.min(scaleW, scaleH) * 0.9;
+    
+    // Center it
+    state.x = (vpW - state.imgWidth * state.scale) / 2;
+    state.y = (vpH - state.imgHeight * state.scale) / 2;
+    
+    updateTransform();
+  }
+
+  // ===== INTERACTION =====
+  function setupEventListeners() {
+    // --- Mouse ---
+    els.viewport.addEventListener('mousedown', e => {
+      if(e.target.closest('.point')) return;
+      state.isDragging = true;
+      state.startX = e.clientX - state.x;
+      state.startY = e.clientY - state.y;
+      els.viewport.classList.add('grabbing');
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!state.isDragging) return;
+      e.preventDefault();
+      state.x = e.clientX - state.startX;
+      state.y = e.clientY - state.startY;
+      updateTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      state.isDragging = false;
+      els.viewport.classList.remove('grabbing');
+    });
+
+    // --- Touch (Mobile Fixes) ---
+    let lastDist = 0;
+    
+    els.viewport.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        // Drag
+        state.isDragging = true;
+        state.startX = e.touches[0].clientX - state.x;
+        state.startY = e.touches[0].clientY - state.y;
+      } else if (e.touches.length === 2) {
+        // Zoom start
+        state.isDragging = false;
+        lastDist = getDist(e.touches);
+      }
+    }, { passive: false }); // Important for preventing scroll
+
+    els.viewport.addEventListener('touchmove', e => {
+      e.preventDefault(); // !!! STOPS WHITE PAGE SCROLLING !!!
+      
+      if (e.touches.length === 1 && state.isDragging) {
+        // Drag move
+        state.x = e.touches[0].clientX - state.startX;
+        state.y = e.touches[0].clientY - state.startY;
+        updateTransform();
+      } else if (e.touches.length === 2) {
+        // Pinch Zoom
+        const dist = getDist(e.touches);
+        const center = getCenter(e.touches);
+        
+        // Calculate zoom factor
+        const factor = dist / lastDist;
+        const oldScale = state.scale;
+        
+        // Apply zoom
+        let newScale = oldScale * factor;
+        newScale = Math.max(CONFIG.minScale, Math.min(CONFIG.maxScale, newScale));
+        state.scale = newScale;
+
+        // Zoom towards center of pinch
+        const rect = els.viewport.getBoundingClientRect();
+        const mx = center.x - rect.left;
+        const my = center.y - rect.top;
+        
+        // Adjust X/Y to keep pinch center stable
+        state.x = mx - (mx - state.x) * (newScale / oldScale);
+        state.y = my - (my - state.y) * (newScale / oldScale);
+        
+        lastDist = dist;
+        updateTransform();
+      }
+    }, { passive: false });
+
+    els.viewport.addEventListener('touchend', () => {
+      state.isDragging = false;
+    });
+
+    // --- Controls ---
+    document.getElementById('btnReset').onclick = fitMapToScreen;
+    document.getElementById('btnFit').onclick = fitMapToScreen;
+    document.getElementById('btnPlus').onclick = () => zoomCenter(CONFIG.zoomStep);
+    document.getElementById('btnMinus').onclick = () => zoomCenter(1/CONFIG.zoomStep);
+    
+    document.getElementById('closeSheet').onclick = closeSheet;
+    els.viewport.addEventListener('click', closeSheet);
+  }
+
+  // --- Helpers ---
+  function getDist(touches) {
+    return Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY
+    );
+  }
+  
+  function getCenter(touches) {
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2
+    };
+  }
+
+  function zoomCenter(factor) {
+    const rect = els.viewport.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    
+    const oldScale = state.scale;
+    state.scale = Math.max(CONFIG.minScale, Math.min(CONFIG.maxScale, state.scale * factor));
+    
+    state.x = cx - (cx - state.x) * (state.scale / oldScale);
+    state.y = cy - (cy - state.y) * (state.scale / oldScale);
+    
+    updateTransform();
+  }
+
+  // --- Sheet Logic ---
+  function openSheet(data, element) {
+    // Highlight point
+    document.querySelectorAll('.point.active').forEach(p => p.classList.remove('active'));
+    element.classList.add('active');
+    
+    // Fill data
+    document.getElementById('sheetId').textContent = '#' + data.row;
+    document.getElementById('sheetName').textContent = data.plate || 'Point ' + data.row;
+    
+    const container = document.getElementById('sheetContent');
+    container.innerHTML = '';
+    
+    if (data.signals && Object.keys(data.signals).length > 0) {
+      Object.entries(data.signals).forEach(([k, v]) => {
+        const div = document.createElement('div');
+        div.className = 'signal-box';
+        
+        // Color logic
+        let color = 'val-r';
+        if(v > -45) color = 'val-g';
+        else if(v >= -80) color = 'val-y';
+        
+        div.innerHTML = `
+          <div class="signal-label">${k}</div>
+          <div class="signal-val ${color}">${v}</div>
+        `;
+        container.appendChild(div);
+      });
+    } else {
+      container.innerHTML = `<div style="grid-column:1/-1; color:#aaa; font-size:12px; text-align:center;">No Signal Data</div>`;
+    }
+    
+    els.sheet.classList.add('open');
+  }
+
+  function closeSheet() {
+    els.sheet.classList.remove('open');
+    document.querySelectorAll('.point.active').forEach(p => p.classList.remove('active'));
+  }
+
+  // Start app
+  init();
+
+</script>
+</body>
+</html>
