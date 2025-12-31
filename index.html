@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
+  <title>Floor View - Network Monitoring System</title>
+  <style>
+    /* ================= GLOBAL & RESET ================= */
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      -webkit-tap-highlight-color: transparent; 
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      /* Clean cream background */
+      background: #f5f1e8;
+      color: #1f2937;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ================= HEADER ================= */
+    .header {
+      /* Light yellow header like editor */
+      background: #fefce8;
+      height: 70px;
+      padding: 0 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* Yellow/golden border */
+      border-bottom: 3px solid #fde047;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      flex-shrink: 0;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    /* Mode Specific Borders */
+    .header.data-mode {
+      border-bottom: 4px solid #14b8a6; /* Teal for data mode */
+    }
+    
+    .header.image-mode {
+      border-bottom: 4px solid #f59e0b; /* Amber for image mode */
+    }
+    
+    .header-left {
+      position: absolute;
+      left: 30px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .app-icon {
+      width: 42px;
+      height: 42px;
+      /* Dark slate like reference */
+      background: #475569;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #ec4899;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    
+    .app-title {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .app-title h1 {
+      color: #2d3748;
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0;
+    }
+    
+    .app-subtitle {
+      color: #9ca3af;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+    
+    .count-badge {
+      /* Amber badge like reference */
+      background: #f59e0b;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 16px;
+      margin-left: 12px;
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+    }
+
+    /* ================= MODE TOGGLE ================= */
+    .mode-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .mode-label {
+      color: #6b7280;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    
+    .mode-toggle {
+      display: flex;
+      gap: 0;
+      /* Light toggle background */
+      background: #f3f4f6;
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .mode-btn {
+      background: transparent;
+      color: #6b7280;
+      border: none;
+      padding: 8px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 130px;
+      justify-content: center;
+    }
+    
+    .mode-btn:hover {
+      background: rgba(249, 250, 251, 0.8);
+      color: #374151;
+    }
+    
+    /* Active state with amber */
+    .mode-btn.active {
+      background: #ffffff;
+      color: #d97706;
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
+      border: 1px solid #fbbf24;
+    }
+
+    /* ================= HEADER CONTROLS (Right) ================= */
+    .header-right {
+      position: absolute;
+      right: 30px;
+      display: flex;
+      gap: 8px;
+    }
+    
+    .btn {
+      /* Light button styling */
+      background: #ffffff;
+      color: #4b5563;
+      border: 1px solid #e5e7eb;
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      font-weight: 600;
+    }
+    
+    .btn:hover { 
+      background: #fef3c7;
+      border-color: #f59e0b;
+      color: #d97706;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.2);
+    }
+    
+    .btn.reset-btn { 
+      width: auto; 
+      padding: 0 16px; 
+      font-size: 13px;
+    }
+
+    /* ================= VIEWPORT & MAP ================= */
+    #viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      /* Light cream viewport background */
+      background: #faf8f3;
+      touch-action: none;
+      cursor: grab;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.03);
+    }
+    
+    #viewport.grabbing { cursor: grabbing; }
+
+    #map-container {
+      position: absolute;
+      top: 0; left: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+    
+    #floorImage {
+      display: block;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+    }
+
+    /* ================= POINTS ================= */
+    .point {
+      position: absolute;
+      /* White point with teal border */
+      background: #ffffff;
+      border: 3px solid #14b8a6;
+      color: #111827;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      cursor: pointer;
+      z-index: 10;
+      transition: all 0.2s;
+      box-shadow: 0 3px 10px rgba(20, 184, 166, 0.25);
+    }
+
+    .point.image-point {
+      background: #ffffff;
+      border-color: #f59e0b;
+      box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+    }
+
+    .point:hover {
+      transform: translate(-50%, -50%) scale(1.15);
+      z-index: 100;
+    }
+
+    .point.active {
+      background: #ffffff;
+      /* Teal active glow */
+      border-color: #0891b2;
+      z-index: 20;
+      box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.3), 0 6px 16px rgba(20, 184, 166, 0.3);
+      transform: translate(-50%, -50%) scale(1.3) !important;
+    }
+
+    /* ================= INFO POPUP (The Table Area) ================= */
+    .info-sheet {
+      position: fixed;
+      z-index: 1000;
+      /* Light blue table background like editor sidebar */
+      background: #dbeafe;
+      border: 2px solid #bfdbfe;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2), 0 0 0 1px rgba(191,219,254,0.3);
+      
+      transform: scale(0.95) translateY(10px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      
+      width: 320px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .info-sheet.open { 
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .info-sheet.image-viewer {
+      left: 50% !important;
+      top: 50% !important;
+      transform: translate(-50%, -50%) scale(0.95);
+      width: auto;
+      max-width: 90vw;
+      max-height: 90vh;
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .info-sheet.image-viewer.open {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #93c5fd;
+      flex-shrink: 0;
+    }
+
+    .plate-title {
+      font-size: 15px;
+      color: #1e3a8a;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .plate-id {
+      /* White badge on blue background */
+      background: #ffffff;
+      color: #1e40af;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+
+    .close-sheet {
+      /* White close button */
+      background: #ffffff;
+      border: none;
+      color: #1e40af;
+      width: 28px; 
+      height: 28px;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    
+    .close-sheet:hover {
+      background: #fcd34d;
+      color: #78350f;
+    }
+
+    .sheet-scroll-area {
+      overflow-y: auto;
+      scrollbar-width: thin;
+      padding-bottom: 4px;
+    }
+
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 12px;
+      padding: 4px;
+    }
+
+    .signal-box {
+      /* WARM THEME: Card Style */
+      background: #ffffff;
+      border: 1px solid #f1d9a6;
+      border-radius: 8px;
+      padding: 12px 10px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: transform 0.2s;
+    }
+    
+    .signal-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-color: #e5e7eb;
+    }
+
+    .signal-box.main-signal {
+      grid-column: 1 / -1;
+      background: #fffbeb; /* Very light warm white for main */
+      border: 1px solid #fde68a;
+      margin-bottom: 4px;
+    }
+
+    .signal-name {
+      font-size: 11px;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .signal-value {
+      font-weight: 700;
+      font-size: 20px;
+      font-family: 'Segoe UI', monospace;
+    }
+
+    /* WARM THEME: Value Colors */
+    .val-green { color: #15803d; }
+    .val-yellow { color: #ca8a04; }
+    .val-red { color: #b91c1c; }
+
+    .image-display {
+      max-width: 80vw;
+      max-height: 70vh;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      display: block;
+      margin: 0 auto;
+    }
+
+    .image-caption {
+      margin-top: 16px;
+      text-align: center;
+      color: #1f2937;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 12px;
+      background: #ffffff;
+      border: 1px solid #f1d9a6;
+      border-radius: 8px;
+    }
+
+    .status {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #ffffff;
+      border: 1px solid #f1d9a6;
+      border-radius: 12px;
+      padding: 30px 50px;
+      text-align: center;
+      font-size: 16px;
+      color: #1f2937;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      z-index: 500;
+    }
+    .status.hidden { display: none; }
+
+    @media (max-width: 768px) {
+      .header { padding: 0 15px; height: 60px; }
+      .header-left { left: 15px; }
+      .header-right { right: 15px; }
+      .app-title h1 { font-size: 14px; }
+      .mode-btn { min-width: 100px; padding: 8px 16px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header data-mode">
+    <div class="header-left">
+      <div class="app-icon">📍</div>
+      <div class="app-title">
+        <h1>Floor View<span class="count-badge" id="plateCount">0</span></h1>
+        <div class="app-subtitle">Monitoring System</div>
+      </div>
+    </div>
+    
+    <div class="mode-container">
+      <div class="mode-label">Display Mode</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="modeData" data-mode="data">📊 Data Points</button>
+        <button class="mode-btn" id="modeImage" data-mode="image">📷 Image Points</button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="btn" id="btnPlus" title="Zoom In">+</button>
+      <button class="btn" id="btnMinus" title="Zoom Out">−</button>
+      <button class="btn reset-btn" id="btnFit">Fit</button>
+      <button class="btn reset-btn" id="btnReset">Reset</button>
+    </div>
+  </div>
+
+  <div id="viewport">
+    <div id="map-container">
+      <img id="floorImage" src="floor1.jpg" alt="Floor Plan">
+    </div>
+  </div>
+
+  <div class="info-sheet" id="infoSheet">
+    <div class="sheet-header">
+      <div class="plate-title">
+        <span class="plate-id" id="sheetId">#1</span>
+        <span id="sheetName">Measurement Point</span>
+      </div>
+      <button class="close-sheet" id="closeSheet">×</button>
+    </div>
+    <div class="sheet-scroll-area">
+      <div class="data-grid" id="sheetContent"></div>
+    </div>
+  </div>
+
+  <div class="status hidden" id="status-msg">⚠️ <b>Loading...</b></div>
+
+<script>
+  const CONFIG = {
+    dataSrc: 'floor_full_data.json',
+    zoomStep: 1.2,
+    minScale: 0.1,
+    maxScale: 10
+  };
+
+  let currentMode = 'data';
+
+  const state = {
+    scale: 1,
+    x: 0,
+    y: 0,
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    points: [],
+    imagePoints: [],
+    initialViewport: null,
+    defaultPointSize: 28
+  };
+
+  const els = {
+    viewport: document.getElementById('viewport'),
+    container: document.getElementById('map-container'),
+    img: document.getElementById('floorImage'),
+    sheet: document.getElementById('infoSheet'),
+    status: document.getElementById('status-msg'),
+    count: document.getElementById('plateCount')
+  };
+
+  document.getElementById('modeData').onclick = () => switchMode('data');
+  document.getElementById('modeImage').onclick = () => switchMode('image');
+
+  function switchMode(mode) {
+    currentMode = mode;
+    document.getElementById('modeData').classList.toggle('active', mode === 'data');
+    document.getElementById('modeImage').classList.toggle('active', mode === 'image');
+    
+    const header = document.querySelector('.header');
+    if (mode === 'data') {
+      header.classList.remove('image-mode');
+      header.classList.add('data-mode');
+    } else {
+      header.classList.remove('data-mode');
+      header.classList.add('image-mode');
+    }
+    
+    closeSheet();
+    renderPoints();
+  }
+
+  function init() {
+    document.querySelector('.header').classList.add('data-mode');
+    els.img.onload = () => loadPointsData();
+    els.img.onerror = () => {
+      els.status.innerHTML = "❌ <b>Error</b><br>floor1.jpg not found";
+      els.status.classList.remove('hidden');
+    };
+    if (els.img.complete && els.img.naturalWidth > 0) loadPointsData();
+    setupEventListeners();
+  }
+
+  async function loadPointsData() {
+    try {
+      const response = await fetch(CONFIG.dataSrc);
+      if (!response.ok) throw new Error("Data file not found");
+      const data = await response.json();
+      
+      if (Array.isArray(data)) {
+        state.points = data.filter(p => !p.type || p.type === 'data');
+        state.imagePoints = data.filter(p => p.type === 'image');
+        fitMapToScreen();
+      } else {
+        state.points = (data.points || []).filter(p => !p.type || p.type === 'data');
+        state.imagePoints = (data.points || []).filter(p => p.type === 'image');
+        
+        if (data.viewportConfig) {
+          state.initialViewport = data.viewportConfig;
+          state.defaultPointSize = data.viewportConfig.pointSize || 28;
+          applyInitialViewport();
+        } else {
+          fitMapToScreen();
+        }
+      }
+      updateCount();
+      els.status.classList.add('hidden');
+      renderPoints();
+    } catch (err) {
+      console.error(err);
+      els.status.innerHTML = `⚠️ <b>No Data</b><br><small>Check console</small>`;
+      els.status.classList.remove('hidden');
+      fitMapToScreen();
+    }
+  }
+
+  function updateCount() {
+    els.count.textContent = currentMode === 'data' ? state.points.length : state.imagePoints.length;
+  }
+
+  function applyInitialViewport() {
+    if (!state.initialViewport) { fitMapToScreen(); return; }
+    state.scale = state.initialViewport.scale || 1;
+    state.x = state.initialViewport.x || 0;
+    state.y = state.initialViewport.y || 0;
+    updateTransform();
+  }
+
+  function renderPoints() {
+    document.querySelectorAll('.point').forEach(p => p.remove());
+    const pointsToShow = currentMode === 'data' ? state.points : state.imagePoints;
+
+    pointsToShow.forEach(p => {
+      const el = document.createElement('div');
+      el.className = 'point';
+      
+      if (p.type === 'image') {
+        el.classList.add('image-point');
+        el.textContent = '📷';
+      } else {
+        el.textContent = p.row;
+      }
+      
+      el.style.left = p.x + 'px';
+      el.style.top = p.y + 'px';
+      el.dataset.baseSize = p.size || state.defaultPointSize;
+      
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSheet(p, el);
+      });
+      els.container.appendChild(el);
+    });
+    
+    updatePointScale();
+    updateCount();
+  }
+
+  function updateTransform() {
+    els.container.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+    updatePointScale();
+  }
+
+  function updatePointScale() {
+    const inverseScale = 1 / state.scale;
+    document.querySelectorAll('.point').forEach(el => {
+      const baseSize = parseInt(el.dataset.baseSize);
+      let size = baseSize * inverseScale;
+      if (size < 20) size = 20; 
+      
+      el.style.width = size + 'px';
+      el.style.height = size + 'px';
+      el.style.fontSize = (size * 0.5) + 'px';
+      el.style.borderWidth = Math.max(2, size * 0.1) + 'px';
+    });
+  }
+
+  function fitMapToScreen() {
+    const vw = els.viewport.clientWidth;
+    const vh = els.viewport.clientHeight;
+    const iw = els.img.naturalWidth || 2000;
+    const ih = els.img.naturalHeight || 2000;
+    const scaleW = vw / iw;
+    const scaleH = vh / ih;
+    state.scale = Math.min(scaleW, scaleH) * 0.95;
+    state.x = (vw - iw * state.scale) / 2;
+    state.y = (vh - ih * state.scale) / 2;
+    updateTransform();
+  }
+
+  function setupEventListeners() {
+    els.viewport.addEventListener('mousedown', e => {
+      if(e.target.closest('.point')) return;
+      state.isDragging = true;
+      state.startX = e.clientX - state.x;
+      state.startY = e.clientY - state.y;
+      els.viewport.classList.add('grabbing');
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!state.isDragging) return;
+      e.preventDefault();
+      state.x = e.clientX - state.startX;
+      state.y = e.clientY - state.startY;
+      updateTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      state.isDragging = false;
+      els.viewport.classList.remove('grabbing');
+    });
+
+    els.viewport.addEventListener('wheel', e => {
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 0.9 : 1.1;
+      const rect = els.viewport.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      zoomToPoint(mx, my, factor);
+    }, { passive: false });
+
+    let lastTouchDist = 0;
+    els.viewport.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        state.isDragging = true;
+        state.startX = e.touches[0].clientX - state.x;
+        state.startY = e.touches[0].clientY - state.y;
+      } else if (e.touches.length === 2) {
+        state.isDragging = false;
+        lastTouchDist = getDist(e.touches);
+      }
+    }, {passive: false});
+
+    els.viewport.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (e.touches.length === 1 && state.isDragging) {
+        state.x = e.touches[0].clientX - state.startX;
+        state.y = e.touches[0].clientY - state.startY;
+        updateTransform();
+      } else if (e.touches.length === 2) {
+        const dist = getDist(e.touches);
+        const center = getCenter(e.touches);
+        const factor = dist / lastTouchDist;
+        const rect = els.viewport.getBoundingClientRect();
+        zoomToPoint(center.x - rect.left, center.y - rect.top, factor);
+        lastTouchDist = dist;
+      }
+    }, {passive: false});
+
+    els.viewport.addEventListener('touchend', () => state.isDragging = false);
+
+    document.getElementById('btnPlus').onclick = () => zoomAtCenter(CONFIG.zoomStep);
+    document.getElementById('btnMinus').onclick = () => zoomAtCenter(1 / CONFIG.zoomStep);
+    document.getElementById('btnFit').onclick = fitMapToScreen;
+    document.getElementById('btnReset').onclick = () => state.initialViewport ? applyInitialViewport() : fitMapToScreen();
+    document.getElementById('closeSheet').onclick = closeSheet;
+    els.viewport.addEventListener('click', closeSheet);
+  }
+
+  const getDist = (touches) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+  const getCenter = (touches) => ({ x: (touches[0].clientX + touches[1].clientX) / 2, y: (touches[0].clientY + touches[1].clientY) / 2 });
+
+  function zoomToPoint(mx, my, factor) {
+    const oldScale = state.scale;
+    let newScale = state.scale * factor;
+    newScale = Math.max(CONFIG.minScale, Math.min(CONFIG.maxScale, newScale));
+    state.x = mx - (mx - state.x) * (newScale / oldScale);
+    state.y = my - (my - state.y) * (newScale / oldScale);
+    state.scale = newScale;
+    updateTransform();
+  }
+
+  function zoomAtCenter(factor) {
+    const rect = els.viewport.getBoundingClientRect();
+    zoomToPoint(rect.width/2, rect.height/2, factor);
+  }
+
+  function openSheet(data, element) {
+    document.querySelectorAll('.point.active').forEach(p => p.classList.remove('active'));
+    element.classList.add('active');
+
+    if (data.type === 'image') {
+      els.sheet.classList.add('image-viewer');
+      document.getElementById('sheetId').textContent = '📷';
+      document.getElementById('sheetName').textContent = data.label || 'Image Point';
+      
+      const container = document.getElementById('sheetContent');
+      container.innerHTML = '';
+      
+      if (data.imageData) {
+        const img = document.createElement('img');
+        img.src = data.imageData;
+        img.className = 'image-display';
+        img.alt = data.label || 'Image';
+        container.appendChild(img);
+        
+        if (data.caption) {
+          const caption = document.createElement('div');
+          caption.className = 'image-caption';
+          caption.textContent = data.caption;
+          container.appendChild(caption);
+        }
+      } else {
+        container.innerHTML = `<div style="text-align:center;color:#aaa;padding:20px;">No image data available</div>`;
+      }
+    } else {
+      els.sheet.classList.remove('image-viewer');
+      document.getElementById('sheetId').textContent = '#' + data.row;
+      document.getElementById('sheetName').textContent = data.plate || 'Measurement Point';
+      
+      const pointRect = element.getBoundingClientRect();
+      const sheetWidth = 320;
+      const sheetMaxHeight = window.innerHeight * 0.8;
+      
+      let left = pointRect.right + 20;
+      let top = pointRect.top;
+      
+      if (left + sheetWidth > window.innerWidth - 20) {
+        left = pointRect.left - sheetWidth - 20;
+      }
+      if (left < 20) {
+        left = (window.innerWidth - sheetWidth) / 2;
+      }
+      if (top + sheetMaxHeight > window.innerHeight - 20) {
+        top = window.innerHeight - sheetMaxHeight - 20;
+      }
+      if (top < 20) {
+        top = 20;
+      }
+      
+      els.sheet.style.left = left + 'px';
+      els.sheet.style.top = top + 'px';
+      
+      const container = document.getElementById('sheetContent');
+      container.innerHTML = '';
+
+      if (data.signals && Object.keys(data.signals).length > 0) {
+        const entries = Object.entries(data.signals);
+        entries.forEach(([key, val], index) => {
+          const colorClass = getSignalColor(val);
+          const isMain = index === 0;
+          
+          const box = document.createElement('div');
+          box.className = `signal-box ${isMain ? 'main-signal' : ''}`;
+          box.innerHTML = `<div class="signal-name">${key}</div><div class="signal-value ${colorClass}">${val}</div>`;
+          container.appendChild(box);
+        });
+      } else {
+        container.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#aaa;padding:10px;font-size:12px;">No signal data available</div>`;
+      }
+    }
+
+    els.sheet.classList.add('open');
+  }
+
+  function getSignalColor(value) {
+    if (value > -45) return 'val-green';
+    if (value >= -80) return 'val-yellow';
+    return 'val-red';
+  }
+
+  function closeSheet() {
+    els.sheet.classList.remove('open');
+    document.querySelectorAll('.point.active').forEach(p => p.classList.remove('active'));
+  }
+
+  init();
+</script>
+</body>
+</html>
